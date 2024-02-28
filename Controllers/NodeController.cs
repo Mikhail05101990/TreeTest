@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TreeTest.Data;
 using TreeTest.Dtos;
+using TreeTest.BL;
 
 namespace TreeTest.Controllers;
 
@@ -79,5 +80,61 @@ public class NodeController : ControllerBase
             return StatusCode(500, $"Node with ID = {node.nodeId} was not found");
 
         return Ok();
+    }
+
+    [HttpPost("/api.user.tree.node.rename")]
+    public ActionResult RenameNode(RenameNodeDto node)
+    {
+        Node? tree = _db.Nodes.Where(x => x.ParentId == 0 && x.Name.Equals(node.treeName)).FirstOrDefault();
+        Node? curNode = _db.Nodes.Where(x => x.Id == node.nodeId).FirstOrDefault();
+
+        if(curNode != null)
+        {
+            if(tree == null) 
+                return StatusCode(500, $"Requested node was found, but it doesn't belong your tree");
+               
+            else
+            {
+                if(curNode.Id == tree.Id)
+                    return StatusCode(500, $"Couldn't rename root node");
+
+                List<Node> grandChildren = NodeMaster.FillChildrenReturnGrandChildren(tree, _db);
+                
+                foreach(var child in tree.Children)
+                {
+                    if(child.Id == node.nodeId)
+                    {
+                        child.Name = node.newNodeName;
+                        _db.SaveChanges();
+
+                        return Ok();
+                    }
+                }
+
+                while (grandChildren.Count > 0)
+                {
+                    List<Node> nodes = new List<Node>();
+
+                    foreach(var child in grandChildren)
+                    {
+                        if(child.Id == node.nodeId)
+                        {
+                            child.Name = node.newNodeName;
+                            _db.SaveChanges();
+
+                            return Ok();
+                        }
+                            
+                        nodes.AddRange(NodeMaster.FillChildrenReturnGrandChildren(child, _db));
+                    }
+                        
+                    grandChildren = nodes;
+                }
+
+                return StatusCode(500, "Requested node was found, but it doesn't belong your tree");
+            }
+        }
+        else
+            return StatusCode(500, $"Node with ID = {node.nodeId} was not found");
     }
 }
