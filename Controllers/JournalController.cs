@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
@@ -8,6 +9,10 @@ using TreeTest.Dtos;
 
 namespace TreeTest.Controllers;
 
+/// <summary>
+/// Represents journal API
+/// </summary>
+[Tags("user.journal")]
 [ApiController]
 [Route("")]
 public class JournalController : ControllerBase
@@ -29,23 +34,40 @@ public class JournalController : ControllerBase
         _db = db;
     }
 
+    /// <remarks>
+    /// Provides the pagination API. Skip means the number of items should be skipped by server. Take means the maximum number items should be returned by server. All fields of the filter are optional.
+    /// </remarks>
     [HttpPost("/api.user.journal.getRange")]
     public async Task<ActionResult<IEnumerable<EventInfoShort>>> GetJournalEvents([FromQuery]EventRangeDto dto, [FromBody]EventFilter filter)
     {
         try
         {
-            DateTime from = DateTime.Parse(filter.From).ToUniversalTime();
-            DateTime to = DateTime.Parse(filter.To).ToUniversalTime();
-            var ct = _db.Events.Where(x => (x.CreatedAt > from || x.CreatedAt < to) && x.Text.Contains(filter.Search) ).Count();
-            EventInfoShort[] events = _db.Events.Where(x => (x.CreatedAt > from || x.CreatedAt < to) && x.Text.Contains(filter.Search) )
-                                                    .Skip(dto.Skip)
-                                                    .Take(dto.Take)
-                                                    .Select(o => new EventInfoShort{
-                                                        Id = o.Id,
-                                                        EventId = o.EventId,
-                                                        CreatedAt = o.CreatedAt
-                                                    })
-                                                    .ToArray();
+            bool isFromParsed;
+            bool isToParsed;
+            DateTime parsedFrom;
+            DateTime parsedTo;
+            isFromParsed = DateTime.TryParse(filter.From, out parsedFrom);
+            isToParsed = DateTime.TryParse(filter.To, out parsedTo);
+            
+            var evts = _db.Events.Where(x => x.Text.Contains(filter.Search) );
+            
+            if(isFromParsed)
+                evts = evts.Where(x => x.CreatedAt >= parsedFrom.ToUniversalTime());
+
+            if(isToParsed)
+                evts = evts.Where(x => x.CreatedAt <= parsedTo.ToUniversalTime());
+
+            int ct = evts.Count();
+
+            EventInfoShort[] events = evts.Skip(dto.Skip)
+                .Take(dto.Take)
+                .Select(o => new EventInfoShort{
+                    Id = o.Id,
+                    EventId = o.EventId,
+                    CreatedAt = o.CreatedAt
+                })
+                .ToArray();
+
             EventSelectRangeDto result = new EventSelectRangeDto()
             {
                 Skip = dto.Skip,
@@ -64,8 +86,9 @@ public class JournalController : ControllerBase
         
     }
 
+    /// <remarks>Returns the information about an particular event by ID.</remarks>
     [HttpPost("/api.user.journal.getSingle")]
-    public async Task<ActionResult<JournalEvent>> GetSingleEventInfo(long eventId)
+    public async Task<ActionResult<JournalEvent>> GetSingleEventInfo([Required]long eventId)
     {
         try
         {

@@ -9,6 +9,10 @@ using TreeTest.BL.Tools;
 
 namespace TreeTest.Controllers;
 
+/// <summary>
+/// Represents tree node API
+/// </summary>
+[Tags("user.tree.node")]
 [ApiController]
 [Route("")]
 public class NodeController : ControllerBase
@@ -30,6 +34,7 @@ public class NodeController : ControllerBase
         _db = db;
     }
 
+    /// <remarks>Create a new node in your tree. You must to specify a parent node ID that belongs to your tree. A new node name must be unique across all siblings.</remarks>
     [HttpPost("/api.user.tree.node.create")]
     public async Task<IActionResult> CreateNode([FromQuery]NewNodeDto nnode)
     {
@@ -76,6 +81,7 @@ public class NodeController : ControllerBase
         }
     }
 
+    /// <remarks>Delete an existing node in your tree. You must specify a node ID that belongs your tree.</remarks>
     [HttpPost("/api.user.tree.node.delete")]
     public async Task<ActionResult> DeleteNode([FromQuery]DeleteNodeDto node)
     {
@@ -114,6 +120,7 @@ public class NodeController : ControllerBase
         }        
     }
 
+    /// <remarks>Rename an existing node in your tree. You must specify a node ID that belongs your tree. A new name of the node must be unique across all siblings.</remarks>
     [HttpPost("/api.user.tree.node.rename")]
     public async Task<ActionResult> RenameNode([FromQuery]RenameNodeDto node)
     {

@@ -4,9 +4,16 @@ using TreeTest.BL;
 using TreeTest.BL.Exceptions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
+using TreeTest.BL.Tools;
+using TreeTest.Dtos;
+using System.ComponentModel.DataAnnotations;
 
 namespace TreeTest.Controllers;
 
+/// <summary>
+/// Represents tree API
+/// </summary>
+[Tags("user.tree")]
 [ApiController]
 [Route("")]
 public class TreeController : ControllerBase
@@ -28,8 +35,9 @@ public class TreeController : ControllerBase
         _db = db;
     }
 
+    /// <remarks>Returns your entire tree. If your tree doesn't exist it will be created automatically.</remarks>
     [HttpPost("/api.user.tree.get")]
-    public ActionResult<Node> GetTree(string treeName)
+    public async Task<ActionResult<Node>> GetTree([Required]string treeName)
     {
         try
         {
@@ -65,7 +73,18 @@ public class TreeController : ControllerBase
         }
         catch(Exception e)
         {
-            return StatusCode(500, e.Message);
+            ExceptionInfo exInfo = await ProcessException(e);
+            
+            return StatusCode(500, JsonConvert.SerializeObject(exInfo, jsnSettings));
         }
+    }
+
+    private async Task<ExceptionInfo> ProcessException(Exception e)
+    {
+        RequestInfoExctractor exctractor = new RequestInfoExctractor();
+        QueryInfo queryInfo = await exctractor.Get(Request); 
+        long eventId = ExceptionWriter.Save(_db, queryInfo, e);
+
+        return new ExceptionInfo($"Internal server error ID = {eventId}.", eventId.ToString(), e.GetType().Name);
     }
 }
