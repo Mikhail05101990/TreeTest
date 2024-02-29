@@ -6,6 +6,7 @@ namespace TreeTest.Data;
 public class TreeContext: DbContext
 {
     public DbSet<Node> Nodes { get; set; }
+    public DbSet<JournalEvent> Events { get; set; }
 
     public TreeContext()
     {

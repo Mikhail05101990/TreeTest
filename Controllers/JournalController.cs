@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using TreeTest.Data;
 using TreeTest.Dtos;
 
@@ -19,9 +18,46 @@ public class JournalController : ControllerBase
     }
 
     [HttpPost("/api.user.journal.getRange")]
-    public ActionResult<IEnumerable<RangeDto>> GetJournalEvents(RangeDto dto)
+    public ActionResult<IEnumerable<EventInfoShort>> GetJournalEvents([FromQuery]EventRangeDto dto, [FromBody]EventFilter filter)
     {
+        try
+        {
+            DateTime from = DateTime.Parse(filter.From).ToUniversalTime();
+            DateTime to = DateTime.Parse(filter.To).ToUniversalTime();
+            var ct = _db.Events.Where(x => (x.CreatedAt > from || x.CreatedAt < to) && x.Text.Contains(filter.Search) ).Count();
+            EventInfoShort[] events = _db.Events.Where(x => (x.CreatedAt > from || x.CreatedAt < to) && x.Text.Contains(filter.Search) )
+                                                    .Skip(dto.Skip)
+                                                    .Take(dto.Take)
+                                                    .Select(o => new EventInfoShort{
+                                                        Id = o.Id,
+                                                        EventId = o.EventId,
+                                                        CreatedAt = o.CreatedAt
+                                                    })
+                                                    .ToArray();
+            EventSelectRangeDto result = new EventSelectRangeDto()
+            {
+                Skip = dto.Skip,
+                Count = ct,
+                Items = events
+            };
 
-        return new List<RangeDto>(){dto}.ToArray();
+            return Ok(result);
+        }
+        catch(Exception e)
+        {
+            return StatusCode(500, e.Message);
+        }
+        
+    }
+
+    [HttpPost("/api.user.journal.getSingle")]
+    public ActionResult<JournalEvent> GetSingleEventInfo(long eventId)
+    {
+        JournalEvent? e = _db.Events.Where(x => x.EventId.Equals(eventId)).FirstOrDefault();
+        
+        if(e != null)
+            return Ok(e);
+        else
+            return StatusCode(500, $"Internal server error ID = {eventId}.");
     }
 }

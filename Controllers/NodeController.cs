@@ -5,6 +5,10 @@ using TreeTest.BL;
 using TreeTest.BL.Exceptions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
+using TreeTest.BL.Tools;
+using System.Collections.Specialized;
+using System.Web;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace TreeTest.Controllers;
 
@@ -30,7 +34,7 @@ public class NodeController : ControllerBase
     }
 
     [HttpPost("/api.user.tree.node.create")]
-    public IActionResult CreateNode(NewNodeDto nnode)
+    public async Task<IActionResult> CreateNode([FromQuery]NewNodeDto nnode)
     {
         try
         {
@@ -63,16 +67,24 @@ public class NodeController : ControllerBase
         }
         catch(SecureException se)
         {
-            
-            ExceptionInfo info = new ExceptionInfo(se.Message, "1", se.type);
+            var stream = new StreamReader(Request.Body);
+            string body = await stream.ReadToEndAsync();
+            QueryInfo queryInfo = new QueryInfo()
+            {
+                Path = string.Format("{0}",Request.Path.Value),
+                TreeName = nnode.treeName,
+                QueryParams = Request.Query,
+                Body = body
+            };
+            long eventId = ExceptionWriter.Save(_db, queryInfo, se);
+            ExceptionInfo exInfo = new ExceptionInfo(se.Message, eventId.ToString(), se.GetType().Name);
 
-            return StatusCode(500, JsonConvert.SerializeObject(info, jsnSettings));
+            return StatusCode(500, JsonConvert.SerializeObject(exInfo, jsnSettings));
         }
-        
     }
 
     [HttpPost("/api.user.tree.node.delete")]
-    public ActionResult DeleteNode(DeleteNodeDto node)
+    public async Task<ActionResult> DeleteNode([FromQuery]DeleteNodeDto node)
     {
         try
         {
@@ -97,15 +109,25 @@ public class NodeController : ControllerBase
         }
         catch(SecureException se)
         {
-            ExceptionInfo info = new ExceptionInfo(se.Message, "1", se.type);
+            var stream = new StreamReader(Request.Body);
+            string body = await stream.ReadToEndAsync();
+            QueryInfo queryInfo = new QueryInfo()
+            {
+                Path = string.Format("{0}",Request.Path.Value),
+                TreeName = node.treeName,
+                QueryParams = Request.Query,
+                Body = body
+            };
+            long eventId = ExceptionWriter.Save(_db, queryInfo, se);
+            ExceptionInfo exInfo = new ExceptionInfo(se.Message, eventId.ToString(), se.GetType().Name);
 
-            return StatusCode(500, JsonConvert.SerializeObject(info, jsnSettings));
+            return StatusCode(500, JsonConvert.SerializeObject(exInfo, jsnSettings));
         }
         
     }
 
     [HttpPost("/api.user.tree.node.rename")]
-    public ActionResult RenameNode(RenameNodeDto node)
+    public async Task<ActionResult> RenameNode([FromQuery]RenameNodeDto node)
     {
         try
         {
@@ -163,9 +185,19 @@ public class NodeController : ControllerBase
         }
         catch(SecureException se)
         {
-            ExceptionInfo info = new ExceptionInfo(se.Message, "1", se.type);
+            var stream = new StreamReader(Request.Body);
+            string body = await stream.ReadToEndAsync();
+            QueryInfo queryInfo = new QueryInfo()
+            {
+                Path = string.Format("{0}",Request.Path.Value),
+                TreeName = node.treeName,
+                QueryParams = Request.Query,
+                Body = body
+            };
+            long eventId = ExceptionWriter.Save(_db, queryInfo, se);
+            ExceptionInfo exInfo = new ExceptionInfo(se.Message, eventId.ToString(), se.GetType().Name);
 
-            return StatusCode(500, JsonConvert.SerializeObject(info, jsnSettings));
+            return StatusCode(500, JsonConvert.SerializeObject(exInfo, jsnSettings));
         }
     }
 }
