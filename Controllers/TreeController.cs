@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using TreeTest.Data;
 using TreeTest.BL;
+using TreeTest.BL.Exceptions;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 
 namespace TreeTest.Controllers;
 
@@ -10,6 +13,14 @@ public class TreeController : ControllerBase
 {
     private readonly ILogger<TreeController> _logger;
     private readonly TreeContext _db;
+    private static JsonSerializerSettings jsnSettings = new JsonSerializerSettings()
+    {
+        ContractResolver = new DefaultContractResolver()
+        {
+            NamingStrategy = new CamelCaseNamingStrategy()
+        },
+        Formatting = Formatting.Indented
+    }; 
 
     public TreeController(ILogger<TreeController> logger, TreeContext db)
     {
