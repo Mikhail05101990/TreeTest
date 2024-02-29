@@ -6,9 +6,6 @@ using TreeTest.BL.Exceptions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using TreeTest.BL.Tools;
-using System.Collections.Specialized;
-using System.Web;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace TreeTest.Controllers;
 
@@ -67,18 +64,14 @@ public class NodeController : ControllerBase
         }
         catch(SecureException se)
         {
-            var stream = new StreamReader(Request.Body);
-            string body = await stream.ReadToEndAsync();
-            QueryInfo queryInfo = new QueryInfo()
-            {
-                Path = string.Format("{0}",Request.Path.Value),
-                TreeName = nnode.treeName,
-                QueryParams = Request.Query,
-                Body = body
-            };
-            long eventId = ExceptionWriter.Save(_db, queryInfo, se);
-            ExceptionInfo exInfo = new ExceptionInfo(se.Message, eventId.ToString(), se.GetType().Name);
+            ExceptionInfo exInfo = await ProcessSecureException(se, nnode.treeName);
 
+            return StatusCode(500, JsonConvert.SerializeObject(exInfo, jsnSettings));
+        }
+        catch(Exception e)
+        {
+            ExceptionInfo exInfo = await ProcessException(e);
+            
             return StatusCode(500, JsonConvert.SerializeObject(exInfo, jsnSettings));
         }
     }
@@ -109,21 +102,16 @@ public class NodeController : ControllerBase
         }
         catch(SecureException se)
         {
-            var stream = new StreamReader(Request.Body);
-            string body = await stream.ReadToEndAsync();
-            QueryInfo queryInfo = new QueryInfo()
-            {
-                Path = string.Format("{0}",Request.Path.Value),
-                TreeName = node.treeName,
-                QueryParams = Request.Query,
-                Body = body
-            };
-            long eventId = ExceptionWriter.Save(_db, queryInfo, se);
-            ExceptionInfo exInfo = new ExceptionInfo(se.Message, eventId.ToString(), se.GetType().Name);
+            ExceptionInfo exInfo = await ProcessSecureException(se, node.treeName);
 
             return StatusCode(500, JsonConvert.SerializeObject(exInfo, jsnSettings));
         }
-        
+        catch(Exception e)
+        {
+            ExceptionInfo exInfo = await ProcessException(e);
+            
+            return StatusCode(500, JsonConvert.SerializeObject(exInfo, jsnSettings));
+        }        
     }
 
     [HttpPost("/api.user.tree.node.rename")]
@@ -185,19 +173,35 @@ public class NodeController : ControllerBase
         }
         catch(SecureException se)
         {
-            var stream = new StreamReader(Request.Body);
-            string body = await stream.ReadToEndAsync();
-            QueryInfo queryInfo = new QueryInfo()
-            {
-                Path = string.Format("{0}",Request.Path.Value),
-                TreeName = node.treeName,
-                QueryParams = Request.Query,
-                Body = body
-            };
-            long eventId = ExceptionWriter.Save(_db, queryInfo, se);
-            ExceptionInfo exInfo = new ExceptionInfo(se.Message, eventId.ToString(), se.GetType().Name);
-
+            ExceptionInfo exInfo = await ProcessSecureException(se, node.treeName);
+            
             return StatusCode(500, JsonConvert.SerializeObject(exInfo, jsnSettings));
         }
+        catch(Exception e)
+        {
+            ExceptionInfo exInfo = await ProcessException(e);
+            
+            return StatusCode(500, JsonConvert.SerializeObject(exInfo, jsnSettings));
+        }
+    }
+
+    private async Task<ExceptionInfo> ProcessSecureException(SecureException se, string nodeName)
+    {
+        RequestInfoExctractor exctractor = new RequestInfoExctractor();
+        QueryInfo queryInfo = await exctractor.Get(Request); 
+        queryInfo.TreeName = nodeName;
+        long eventId = ExceptionWriter.SaveSecure(_db, queryInfo, se);
+        string eventType = se.GetType().Name.Replace("Exception", "");
+            
+        return new ExceptionInfo(se.Message, eventId.ToString(), eventType);
+    }
+
+    private async Task<ExceptionInfo> ProcessException(Exception e)
+    {
+        RequestInfoExctractor exctractor = new RequestInfoExctractor();
+        QueryInfo queryInfo = await exctractor.Get(Request); 
+        long eventId = ExceptionWriter.Save(_db, queryInfo, e);
+
+        return new ExceptionInfo(e.Message, eventId.ToString(), e.GetType().Name);
     }
 }

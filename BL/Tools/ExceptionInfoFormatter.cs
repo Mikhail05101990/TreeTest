@@ -1,13 +1,13 @@
 using System.Text;
+using TreeTest.BL.Exceptions;
 using TreeTest.Dtos;
 
 namespace TreeTest.BL.Tools;
 
 public class ExceptionInfoFormatter
 {
-    public static string GetPlainText(object exObj, QueryInfo queryInfo, long eventId)
+    public static string GetPlainText(SecureException se, QueryInfo queryInfo, long eventId)
     {
-        Exception ex = (Exception)exObj;
         StringBuilder sb = new StringBuilder($"Request ID = {eventId}\r\n");
         sb.Append($"Path = {queryInfo.Path}\r\n");
         
@@ -15,13 +15,13 @@ public class ExceptionInfoFormatter
             foreach(var item in queryInfo.QueryParams)
                 sb.Append($"{item.Key} = {item.Value}\r\n");
         
-        sb.Append($"{queryInfo}\r\n");
+        sb.Append("\r\n");
         
-        if(queryInfo.Body != null)
-            sb.Append($"{queryInfo.Body}");
+        if(!string.IsNullOrEmpty(queryInfo.Body))
+            sb.Append($"{queryInfo.Body}\r\n");
         
-        sb.Append($"{ex.Message}\r\n\r\n");
-        sb.Append($"{ex.StackTrace}");
+        sb.Append($"\r\n{se.Message}\r\n");
+        sb.Append($"{se.StackTrace}");
     
         return sb.ToString();
     }

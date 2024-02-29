@@ -1,4 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
+using TreeTest.BL.Exceptions;
+using TreeTest.BL.Tools;
 using TreeTest.Data;
 using TreeTest.Dtos;
 
@@ -10,6 +14,14 @@ public class JournalController : ControllerBase
 {
     private readonly ILogger<JournalController> _logger;
     private readonly TreeContext _db;
+    private static JsonSerializerSettings jsnSettings = new JsonSerializerSettings()
+    {
+        ContractResolver = new DefaultContractResolver()
+        {
+            NamingStrategy = new CamelCaseNamingStrategy()
+        },
+        Formatting = Formatting.Indented
+    }; 
 
     public JournalController(ILogger<JournalController> logger, TreeContext db)
     {
@@ -18,7 +30,7 @@ public class JournalController : ControllerBase
     }
 
     [HttpPost("/api.user.journal.getRange")]
-    public ActionResult<IEnumerable<EventInfoShort>> GetJournalEvents([FromQuery]EventRangeDto dto, [FromBody]EventFilter filter)
+    public async Task<ActionResult<IEnumerable<EventInfoShort>>> GetJournalEvents([FromQuery]EventRangeDto dto, [FromBody]EventFilter filter)
     {
         try
         {
@@ -45,19 +57,39 @@ public class JournalController : ControllerBase
         }
         catch(Exception e)
         {
-            return StatusCode(500, e.Message);
+            ExceptionInfo exInfo = await ProcessException(e);
+            
+            return StatusCode(500, JsonConvert.SerializeObject(exInfo, jsnSettings));
         }
         
     }
 
     [HttpPost("/api.user.journal.getSingle")]
-    public ActionResult<JournalEvent> GetSingleEventInfo(long eventId)
+    public async Task<ActionResult<JournalEvent>> GetSingleEventInfo(long eventId)
     {
-        JournalEvent? e = _db.Events.Where(x => x.EventId.Equals(eventId)).FirstOrDefault();
-        
-        if(e != null)
-            return Ok(e);
-        else
-            return StatusCode(500, $"Internal server error ID = {eventId}.");
+        try
+        {
+            JournalEvent? e = _db.Events.Where(x => x.EventId.Equals(eventId)).FirstOrDefault();
+            
+            if(e != null)
+                return Ok(e);
+            else
+                return StatusCode(500, $"Internal server error ID = {eventId}.");
+        }
+        catch(Exception e)
+        {
+            ExceptionInfo exInfo = await ProcessException(e);
+            
+            return StatusCode(500, JsonConvert.SerializeObject(exInfo, jsnSettings));
+        }
+    }
+
+    private async Task<ExceptionInfo> ProcessException(Exception e)
+    {
+        RequestInfoExctractor exctractor = new RequestInfoExctractor();
+        QueryInfo queryInfo = await exctractor.Get(Request); 
+        long eventId = ExceptionWriter.Save(_db, queryInfo, e);
+
+        return new ExceptionInfo($"Internal server error ID = {eventId}.", eventId.ToString(), e.GetType().Name);
     }
 }
